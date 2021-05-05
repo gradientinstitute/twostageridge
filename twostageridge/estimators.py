@@ -111,12 +111,18 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         X = np.delete(W, self.treatment_ind, axis=1)
         return X, z
 
-    def _transform_W(self, W: np.array) -> np.array:
-        if isinstance(W, pd.DataFrame):
+    def _transform_W(self, W: Union[pd.DataFrame, np.array]) -> np.array:
+        if hasattr(W, 'columns'):
+            if self.treatment_col not in W.columns:
+                raise ValueError('treatment_col not in the data.')
             self.treatment_ind = list(W.columns).index(self.treatment_col)
-            W = W.to_array()
+            W = W.to_numpy()
         else:
             self.treatment_ind = self.treatment_col
+
+        if self.treatment_ind >= W.shape[1]:
+            raise ValueError('treatment_col is out of the bounds of the data.')
+
         if self.fit_intercept:
             W = np.hstack((W, np.ones((len(W), 1))))
         return W
