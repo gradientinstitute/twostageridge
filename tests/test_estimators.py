@@ -17,8 +17,9 @@ def test_splitting():
     ind = 1
     labels = np.array([0, 1, 2])
     W = np.ones((10, 3)) * labels
+    Y = np.ones(10)
 
-    est = TwoStageRidge(treatment_index=ind, fit_intercept=False)
+    est = TwoStageRidge(treatment_index=ind, fit_intercept=False).fit(W, Y)
     W, X, z = est._splitW(W)
 
     assert all(z == 1)
@@ -34,13 +35,15 @@ def test_intercept_indexing():
     ind = -2
     labels = np.array([-3, -2, -1])
     W = np.ones((10, 3)) * labels
+    Y = np.ones(10)
 
-    est = TwoStageRidge(treatment_index=ind, fit_intercept=True)
+    est = TwoStageRidge(treatment_index=ind, fit_intercept=True).fit(W, Y)
+    _, _, _ = est._splitW(W)  # Test repeated calling
     W, X, z = est._splitW(W)
 
     assert all(z == ind)
     assert all(W[:, -1] == 1)
-    assert est.treatment_index == (ind - 1)
+    assert est._tind == (ind - 1)
 
 
 def test_ridge_weights(make_triangle_dag_params, make_triangle_dag_data):

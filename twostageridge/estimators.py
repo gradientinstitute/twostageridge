@@ -43,6 +43,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         """Fit the two-stage ridge regression estimator."""
         # Checks and input transforms
         W, y = check_X_y(W, y, y_numeric=True)
+        self._check_treatment_index(W)
         self.n_features_in_ = W.shape[1]
         W, X, z = self._splitW(W)
 
@@ -52,8 +53,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
         # Stage 2 - initialisation
         beta = ridge_weights(W, y, self.regulariser2)
-        self.beta_ = np.delete(beta, self.treatment_index, axis=0)
-        alpha_0 = beta[self.treatment_index]
+        self.beta_ = np.delete(beta, self._tind, axis=0)
+        alpha_0 = beta[self._tind]
         beta_d_0 = self.beta_ + alpha_0 * self.beta_c_
         params_0 = np.concatenate([[alpha_0], beta_d_0])
 
@@ -135,20 +136,23 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
     def _splitW(self, W: np.ndarray) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Split W into X and z, add an intercept term to W, X optionally."""
+        if self.fit_intercept:
+            W = np.hstack((W, np.ones((len(W), 1))))
+        z = W[:, self._tind]
+        X = np.delete(W, self._tind, axis=1)
+        return W, X, z
+
+    def _check_treatment_index(self, W: np.ndarray):
         D = W.shape[1]
         if (self.treatment_index >= D) or (self.treatment_index < -D):
             raise ValueError('treatment_index is out of bounds of the data.')
 
-        if self.fit_intercept:
-            W = np.hstack((W, np.ones((len(W), 1))))
-            # offset treatment index by -1 if it is negative to compensate for
-            #  the intercept.
-            if self.treatment_index < 0:
-                self.treatment_index -= 1
+        self._tind = self.treatment_index
 
-        z = W[:, self.treatment_index]
-        X = np.delete(W, self.treatment_index, axis=1)
-        return W, X, z
+        # offset treatment index by -1 if it is negative to compensate for
+        #  the intercept.
+        if self.fit_intercept and (self.treatment_index < 0):
+            self._tind = self.treatment_index - 1
 
 
 def ridge_weights(X: np.ndarray, Y: np.ndarray, gamma: float) -> np.ndarray:
