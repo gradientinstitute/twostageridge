@@ -43,7 +43,7 @@ def test_intercept_indexing():
 
     assert all(z == ind)
     assert all(W[:, -1] == 1)
-    assert est._tind == (ind - 1)
+    assert all(z == W[:, est._alphaind])
 
 
 def test_ridge_weights(make_triangle_dag_params, make_triangle_dag_data):

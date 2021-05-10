@@ -53,8 +53,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
         # Stage 2 - initialisation
         beta = ridge_weights(W, y, self.regulariser2)
-        self.beta_ = np.delete(beta, self._tind, axis=0)
-        alpha_0 = beta[self._tind]
+        self.beta_ = np.delete(beta, self._alphaind, axis=0)
+        alpha_0 = beta[self._alphaind]
         beta_d_0 = self.beta_ + alpha_0 * self.beta_c_
         params_0 = np.concatenate([[alpha_0], beta_d_0])
 
@@ -136,10 +136,10 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
     def _splitW(self, W: np.ndarray) \
             -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Split W into X and z, add an intercept term to W, X optionally."""
+        z = W[:, self.treatment_index]
         if self.fit_intercept:
             W = np.hstack((W, np.ones((len(W), 1))))
-        z = W[:, self._tind]
-        X = np.delete(W, self._tind, axis=1)
+        X = np.delete(W, self._alphaind, axis=1)
         return W, X, z
 
     def _check_treatment_index(self, W: np.ndarray):
@@ -147,12 +147,12 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         if (self.treatment_index >= D) or (self.treatment_index < -D):
             raise ValueError('treatment_index is out of bounds of the data.')
 
-        self._tind = self.treatment_index
+        self._alphaind = self.treatment_index
 
-        # offset treatment index by -1 if it is negative to compensate for
-        #  the intercept.
+        # Make sure treatment_index indexes the right weights for alpha
+        # initialisation
         if self.fit_intercept and (self.treatment_index < 0):
-            self._tind = self.treatment_index - 1
+            self._alphaind = D + self.treatment_index
 
 
 def ridge_weights(X: np.ndarray, Y: np.ndarray, gamma: float) -> np.ndarray:
