@@ -46,10 +46,10 @@ def test_intercept_indexing():
     assert all(z == W[:, est._alphaind])
 
 
-def test_ridge_weights(make_triangle_dag_params, make_triangle_dag_data):
+def test_ridge_weights(make_dag1D_params, make_dag1D_data):
     """Make sure ridge_weights can return an accurate estimate."""
-    alpha, gamma, beta, eps, nu = make_triangle_dag_params
-    W, X, Y, Z = make_triangle_dag_data
+    alpha, gamma, beta, eps, nu = make_dag1D_params
+    W, X, Y, Z = make_dag1D_data
 
     Xint = np.hstack((X, np.ones((len(X), 1))))
     gamma_rr, _ = ridge_weights(Xint, Z, gamma=1.)
@@ -62,10 +62,10 @@ def test_ridge_weights(make_triangle_dag_params, make_triangle_dag_data):
     assert np.allclose(beta_rr, beta, rtol=0.01)
 
 
-def test_estimator_weights(make_triangle_dag_params, make_triangle_dag_data):
+def test_estimator_weights(make_dag1D_params, make_dag1D_data):
     """Make sure ridge_weights can return an accurate estimate."""
-    alpha, gamma, beta, eps, nu = make_triangle_dag_params
-    W, X, Y, Z = make_triangle_dag_data
+    alpha, gamma, beta, eps, nu = make_dag1D_params
+    W, X, Y, Z = make_dag1D_data
 
     est = TwoStageRidge(treatment_index=0, regulariser1=.1, regulariser2=.1)
     est.fit(W, Y)
