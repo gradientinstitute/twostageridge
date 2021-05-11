@@ -1,9 +1,12 @@
 """Tests for the two stage ridge regression estimators."""
 import numpy as np
+import pytest
 
 from sklearn.utils.estimator_checks import check_estimator
 
 from twostageridge import TwoStageRidge, ridge_weights
+from conftest import (make_dag1D_data, make_dag2D_data, make_dag1D_params,
+                      make_dag2D_params)
 
 
 def test_valid_estimator():
@@ -46,29 +49,35 @@ def test_intercept_indexing():
     assert all(z == W[:, est._alphaind])
 
 
-def test_ridge_weights(make_dag1D_params, make_dag1D_data):
+@pytest.mark.parametrize('params, data', [
+    (make_dag1D_params(), make_dag1D_data()),
+    (make_dag2D_params(), make_dag2D_data()),
+])
+def test_ridge_weights(params, data):
     """Make sure ridge_weights can return an accurate estimate."""
-    alpha, gamma, beta, eps, nu = make_dag1D_params
-    W, X, Y, Z = make_dag1D_data
+    alpha, gamma, beta, eps, nu = params
+    W, X, Y, Z = data
 
     Xint = np.hstack((X, np.ones((len(X), 1))))
-    gamma_rr, _ = ridge_weights(Xint, Z, gamma=1.)
+    gamma_rr = ridge_weights(Xint, Z, gamma=.1)[:-1]
     assert np.allclose(gamma_rr, gamma, rtol=0.01)
 
-    # There is only one control here, so we should be able to infer these
-    # directly
-    alpha_rr, beta_rr = ridge_weights(W, Y, gamma=1.)
-    assert np.allclose(alpha_rr, alpha, rtol=0.01)
-    assert np.allclose(beta_rr, beta, rtol=0.01)
 
-
-def test_estimator_weights(make_dag1D_params, make_dag1D_data):
+@pytest.mark.parametrize('params, data', [
+    (make_dag1D_params(), make_dag1D_data()),
+    # (make_dag2D_params(), make_dag2D_data()),
+])
+def test_estimator_weights(params, data):
     """Make sure ridge_weights can return an accurate estimate."""
-    alpha, gamma, beta, eps, nu = make_dag1D_params
-    W, X, Y, Z = make_dag1D_data
+    alpha, gamma, beta, eps, nu = params
+    W, X, Y, Z = data
 
+    # treatment_index = 
     est = TwoStageRidge(treatment_index=0, regulariser1=.1, regulariser2=.1)
     est.fit(W, Y)
 
-    assert np.allclose(est.beta_c_[0], gamma, rtol=0.01)
-    assert np.allclose(est.alpha_, alpha, rtol=0.01)
+    assert np.allclose(est.beta_c_[0], gamma, rtol=0.02)
+    assert np.allclose(est.alpha_, alpha, rtol=0.02)
+
+    se_alpha = np.sqrt(nu**2 / np.sum(Z**2))
+    assert np.allclose(se_alpha, est.se_alpha_, atol=0.02)

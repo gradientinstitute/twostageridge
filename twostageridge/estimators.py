@@ -1,7 +1,7 @@
 """Define the two-stage ridge regression estimator."""
 
 import numpy as np
-from typing import Tuple, Optional, TypeVar
+from typing import Tuple, Optional, TypeVar, Union
 
 from scipy.optimize import minimize
 from scipy.linalg import solve
@@ -21,15 +21,13 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
     def __init__(
         self,
-        treatment_index: int = 0,
+        treatment_index: [int, np.array, slice] = 0,
         regulariser1: float = 0.1,
         regulariser2: float = 0.1,
         fit_intercept: bool = True,
         tol: Optional[float] = None
     ) -> None:
         """Instantiate a two-stage ridge regression estimator."""
-        if not np.isscalar(treatment_index):
-            raise TypeError('treatment_index must be an int only!')
         if (regulariser1 < 0) or (regulariser2 < 0):
             raise ValueError('regulariser coefficients must have a value >= 0')
 
@@ -88,7 +86,10 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
                        tol=self.tol)
         self.alpha_ = res.x[0]
         self.beta_d_ = res.x[1:]
-        self.coef_ = res.x
+
+        # Compute alpha standard error (OLS)
+        s2 = np.var(y - self.alpha_ * r - X @ self.beta_d_, ddof=1)
+        self.se_alpha_ = np.sqrt(s2 / np.sum(r**2))
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
@@ -144,15 +145,40 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
     def _check_treatment_index(self, W: np.ndarray):
         D = W.shape[1]
-        if (self.treatment_index >= D) or (self.treatment_index < -D):
-            raise ValueError('treatment_index is out of bounds of the data.')
 
-        self._alphaind = self.treatment_index
+        # TODO: lift these checks over the types
+        if np.isscalar(self.treatment_index):
+            if (self.treatment_index >= D) or (self.treatment_index < -D):
+                raise ValueError('treatment_index is out of bounds.')
 
-        # Make sure treatment_index indexes the right weights for alpha
-        # initialisation
-        if self.fit_intercept and (self.treatment_index < 0):
-            self._alphaind = D + self.treatment_index
+            # Make sure alphaind_ indexes right weights for initialisation
+            self._alphaind = self.treatment_index
+            if self.fit_intercept and (self.treatment_index < 0):
+                self._alphaind = D + self.treatment_index
+
+        elif isinstance(self.treatment_index, slice):
+            if (self.treatment_index.start >= D) \
+                    or (self.treatment_index.start < -D) \
+                    or (self.treatment_index.stop >= D) \
+                    or (self.treatment_index.stop < -D):
+                raise ValueError('treatment_index slice is out of bounds.')
+
+            # Make sure alphaind_ indexes right weights for initialisation
+            self._alphaind = self.treatment_index
+            if self.fit_intercept and (self.treatment_index.start < 0):
+                self._alphaind.start = D + self.treatment_index.start
+            if self.fit_intercept and (self.treatment_index.stop < 0):
+                self._alphaind.stop = D + self.treatment_index.stop
+        else:
+            self._alphaind = np.copy(self.treatment_index)
+
+            for n, i in enumerate(self.treatment_index):
+                if (i >= D) or (i < -D):
+                    raise ValueError(f'treatment_index {i} is out of bounds.')
+
+                # Make sure alphaind_ indexes right weights for initialisation
+                if self.fit_intercept and (i < 0):
+                    self._alphaind[n] = D + self.treatment_index[n]
 
 
 def ridge_weights(X: np.ndarray, Y: np.ndarray, gamma: float) -> np.ndarray:
