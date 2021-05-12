@@ -2,6 +2,7 @@
 
 import numpy as np
 from typing import Tuple, Optional, TypeVar, Union
+from functools import singledispatch
 
 from scipy.optimize import minimize
 from scipy.linalg import solve
@@ -16,12 +17,16 @@ from sklearn.metrics import r2_score
 Self = TypeVar('Self', bound='TwoStageRidge')
 
 
+#
+# Public classes and functions
+#
+
 class TwoStageRidge(BaseEstimator, RegressorMixin):
     """Two stage ridge regression for causal response surface estimation."""
 
     def __init__(
         self,
-        treatment_index: [int, np.array, slice] = 0,
+        treatment_index: Union[int, np.array, slice] = 0,
         regulariser1: float = 0.1,
         regulariser2: float = 0.1,
         fit_intercept: bool = True,
@@ -41,7 +46,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         """Fit the two-stage ridge regression estimator."""
         # Checks and input transforms
         W, y = check_X_y(W, y, y_numeric=True)
-        self._check_treatment_index(W)
+        self.adjust_tind_ = _check_treatment_index(self.treatment_index, W,
+                                                   self.fit_intercept)
         self.n_features_in_ = W.shape[1]
         W, X, z = self._splitW(W)
 
@@ -51,8 +57,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
         # Stage 2 - initialisation
         beta = ridge_weights(W, y, self.regulariser2)
-        self.beta_ = np.delete(beta, self._alphaind, axis=0)
-        alpha_0 = beta[self._alphaind]
+        self.beta_ = np.delete(beta, self.adjust_tind_, axis=0)
+        alpha_0 = beta[self.adjust_tind_]
         beta_d_0 = self.beta_ + alpha_0 * self.beta_c_
         params_0 = np.concatenate([[alpha_0], beta_d_0])
 
@@ -140,45 +146,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         z = W[:, self.treatment_index]
         if self.fit_intercept:
             W = np.hstack((W, np.ones((len(W), 1))))
-        X = np.delete(W, self._alphaind, axis=1)
+        X = np.delete(W, self.adjust_tind_, axis=1)
         return W, X, z
-
-    def _check_treatment_index(self, W: np.ndarray):
-        D = W.shape[1]
-
-        # TODO: lift these checks over the types
-        if np.isscalar(self.treatment_index):
-            if (self.treatment_index >= D) or (self.treatment_index < -D):
-                raise ValueError('treatment_index is out of bounds.')
-
-            # Make sure alphaind_ indexes right weights for initialisation
-            self._alphaind = self.treatment_index
-            if self.fit_intercept and (self.treatment_index < 0):
-                self._alphaind = D + self.treatment_index
-
-        elif isinstance(self.treatment_index, slice):
-            if (self.treatment_index.start >= D) \
-                    or (self.treatment_index.start < -D) \
-                    or (self.treatment_index.stop >= D) \
-                    or (self.treatment_index.stop < -D):
-                raise ValueError('treatment_index slice is out of bounds.')
-
-            # Make sure alphaind_ indexes right weights for initialisation
-            self._alphaind = self.treatment_index
-            if self.fit_intercept and (self.treatment_index.start < 0):
-                self._alphaind.start = D + self.treatment_index.start
-            if self.fit_intercept and (self.treatment_index.stop < 0):
-                self._alphaind.stop = D + self.treatment_index.stop
-        else:
-            self._alphaind = np.copy(self.treatment_index)
-
-            for n, i in enumerate(self.treatment_index):
-                if (i >= D) or (i < -D):
-                    raise ValueError(f'treatment_index {i} is out of bounds.')
-
-                # Make sure alphaind_ indexes right weights for initialisation
-                if self.fit_intercept and (i < 0):
-                    self._alphaind[n] = D + self.treatment_index[n]
 
 
 def ridge_weights(X: np.ndarray, Y: np.ndarray, gamma: float) -> np.ndarray:
@@ -188,3 +157,72 @@ def ridge_weights(X: np.ndarray, Y: np.ndarray, gamma: float) -> np.ndarray:
     b = X.T @ Y
     weights = solve(A, b, assume_a='pos')
     return weights
+
+
+#
+# Private module utilities
+#
+
+@singledispatch
+def _check_treatment_index(
+    treatment_index,
+    W: np.ndarray,
+    fit_intercept: bool
+) -> Union[int, np.array, slice]:
+    """Check for a valid treatment index into W."""
+    raise TypeError('treatment_index must be an int, and array of int,'
+                    ' or a slice.')
+
+
+@_check_treatment_index.register
+def _(treatment_index: int, W: np.ndarray, fit_intercept: bool) -> int:
+    D = W.shape[1]
+
+    if (treatment_index >= D) or (treatment_index < -D):
+        raise ValueError('treatment_index is out of bounds.')
+
+    # Make sure adjust_tind_ indexes right weights for initialisation
+    adjust_tind = treatment_index
+    if fit_intercept and (treatment_index < 0):
+        adjust_tind = D + treatment_index
+
+    return adjust_tind
+
+
+@_check_treatment_index.register
+def _(treatment_index: slice, W: np.ndarray, fit_intercept: bool) -> slice:
+    D = W.shape[1]
+
+    if (treatment_index.start >= D) \
+            or (treatment_index.start < -D) \
+            or (treatment_index.stop >= D) \
+            or (treatment_index.stop < -D):
+        raise ValueError('treatment_index slice is out of bounds.')
+
+    start, stop = treatment_index.start, treatment_index.stop
+
+    # Make sure adjust_tind_ indexes right weights for initialisation
+    if fit_intercept and (treatment_index.start < 0):
+        start = D + treatment_index.start
+    if fit_intercept and (treatment_index.stop < 0):
+        stop = D + treatment_index.stop
+
+    adjust_tind = slice(start, stop, treatment_index.step)
+    return adjust_tind
+
+
+@_check_treatment_index.register
+def _(treatment_index: np.ndarray, W: np.ndarray, fit_intercept: bool) \
+        -> np.ndarray:
+    D = W.shape[1]
+
+    adjust_tind = np.copy(treatment_index)
+    for n, i in enumerate(treatment_index):
+        if (i >= D) or (i < -D):
+            raise ValueError(f'treatment_index {i} is out of bounds.')
+
+        # Make sure adjust_tind_ indexes right weights for initialisation
+        if fit_intercept and (i < 0):
+            adjust_tind[n] = D + treatment_index[n]
+
+    return adjust_tind

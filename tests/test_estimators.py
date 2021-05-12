@@ -5,6 +5,7 @@ import pytest
 from sklearn.utils.estimator_checks import check_estimator
 
 from twostageridge import TwoStageRidge, ridge_weights
+from twostageridge.estimators import _check_treatment_index
 from conftest import (make_dag1D_data, make_dag2D_data, make_dag1D_params,
                       make_dag2D_params)
 
@@ -46,7 +47,18 @@ def test_intercept_indexing():
 
     assert all(z == ind)
     assert all(W[:, -1] == 1)
-    assert all(z == W[:, est._alphaind])
+    assert all(z == W[:, est.adjust_tind_])
+
+
+@pytest.mark.parametrize('index', [-1, 1, slice(0, -2), np.array([0, 1, -1])])
+@pytest.mark.parametrize('intercept', [False, True])
+def test_intercept_checks(index, intercept):
+    """Test the checking code for indexing."""
+    labels = np.arange(5)
+    W = np.ones((10, 5)) * labels
+
+    adj_ind = _check_treatment_index(index, W, intercept)
+    assert np.all(W[:, index] == W[:, adj_ind])
 
 
 @pytest.mark.parametrize('params, data', [
@@ -72,7 +84,7 @@ def test_estimator_weights(params, data):
     alpha, gamma, beta, eps, nu = params
     W, X, Y, Z = data
 
-    # treatment_index = 
+    # treatment_index =
     est = TwoStageRidge(treatment_index=0, regulariser1=.1, regulariser2=.1)
     est.fit(W, Y)
 
