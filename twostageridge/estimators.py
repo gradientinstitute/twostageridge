@@ -58,16 +58,17 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         # Stage 2 - initialisation
         beta = ridge_weights(W, y, self.regulariser2)
         self.beta_ = np.delete(beta, self.adjust_tind_, axis=0)
-        alpha_0 = beta[self.adjust_tind_]
-        beta_d_0 = self.beta_ + alpha_0 * self.beta_c_
-        params_0 = np.concatenate([[alpha_0], beta_d_0])
+        alpha_0 = np.atleast_1d(beta[self.adjust_tind_])
+        beta_d_0 = self.beta_ + self.beta_c_ @ alpha_0
+        params_0 = np.concatenate([alpha_0, beta_d_0])
 
         # Stage 2 - objective function
         r = z - z_hat
+        len_alpha = len(alpha_0)
 
         def objective(params: np.ndarray) -> float:
-            alpha, beta_d = params[0], params[1:]
-            y_hat = alpha * r + X @ beta_d
+            alpha, beta_d = params[:len_alpha], params[len_alpha:]
+            y_hat = r @ alpha + X @ beta_d
             obj = np.sum((y - y_hat)**2) \
                 + self.regulariser2 * beta_d.T @ beta_d
             return obj
@@ -80,22 +81,28 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         XTy = X.T @ y
 
         def gradient(params: np.ndarray) -> np.ndarray:
-            alpha, beta_d = params[0], params[1:]
-            dalpha = 2 * (alpha * rTr - rTy + rTX @ beta_d)
-            dbeta_d = 2 * (XTX @ beta_d - XTy + alpha * rTX.T
+            alpha, beta_d = params[:len_alpha], params[len_alpha:]
+            dalpha = 2 * (rTr @ alpha - rTy + rTX @ beta_d)
+            dbeta_d = 2 * (XTX @ beta_d - XTy + rTX.T @ alpha
                            + self.regulariser2 * beta_d)
-            dparams = np.concatenate([[dalpha], dbeta_d])
+            dparams = np.concatenate([dalpha, dbeta_d])
             return dparams
 
         # Stage 2 - solve
         res = minimize(objective, params_0, jac=gradient, method='L-BFGS-B',
                        tol=self.tol)
-        self.alpha_ = res.x[0]
-        self.beta_d_ = res.x[1:]
+        self.alpha_ = res.x[:len_alpha]
+        self.beta_d_ = res.x[len_alpha:]
 
-        # Compute alpha standard error (OLS)
-        s2 = np.var(y - self.alpha_ * r - X @ self.beta_d_, ddof=1)
-        self.se_alpha_ = np.sqrt(s2 / np.sum(r**2))
+        # Compute alpha variance and standard error (OLS)
+        s2 = np.var(y - r @ self.alpha_ - X @ self.beta_d_, ddof=1)
+        if len_alpha == 1:
+            self.var_alpha_ = s2 / np.squeeze(rTr)
+            self.se_alpha_ = np.sqrt(self.var_alpha_)
+        else:
+            self.var_alpha_ = solve(rTr, np.diag(np.full(len_alpha, s2)),
+                                    assume_a='pos')
+            self.se_alpha_ = np.sqrt(self.var_alpha_.diagonal())
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
@@ -108,7 +115,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         z_hat = X @ self.beta_c_
 
         # Stage 2
-        y_hat = self.alpha_ * (z - z_hat) + X @ self.beta_d_
+        y_hat = (z - z_hat) @ self.alpha_ + X @ self.beta_d_
         return y_hat
 
     def score_stage1(
@@ -144,6 +151,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Split W into X and z, add an intercept term to W, X optionally."""
         z = W[:, self.treatment_index]
+        if np.ndim(z) == 1:
+            z = z[:, np.newaxis]
         if self.fit_intercept:
             W = np.hstack((W, np.ones((len(W), 1))))
         X = np.delete(W, self.adjust_tind_, axis=1)

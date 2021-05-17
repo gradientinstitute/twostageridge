@@ -8,7 +8,7 @@ from sklearn.utils import check_random_state
 # Test constants
 RANDSTATE = 99
 RANDOM = check_random_state(RANDSTATE)
-N = 5000
+N = 10000
 
 
 @pytest.fixture
