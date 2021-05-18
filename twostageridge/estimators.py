@@ -29,8 +29,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         treatment_index: Union[int, np.array, slice] = 0,
         regulariser1: float = 0.1,
         regulariser2: float = 0.1,
-        fit_intercept: bool = True,
-        tol: Optional[float] = None
+        fit_intercept: bool = True
     ) -> None:
         """Instantiate a two-stage ridge regression estimator."""
         if (regulariser1 < 0) or (regulariser2 < 0):
@@ -40,7 +39,6 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         self.regulariser1 = regulariser1
         self.regulariser2 = regulariser2
         self.fit_intercept = fit_intercept
-        self.tol = tol
 
     def fit(self, W: np.ndarray, y: np.ndarray) -> Self:
         """Fit the two-stage ridge regression estimator."""
@@ -48,61 +46,40 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         W, y = check_X_y(W, y, y_numeric=True)
         self.adjust_tind_ = _check_treatment_index(self.treatment_index, W,
                                                    self.fit_intercept)
-        self.n_features_in_ = W.shape[1]
+        self.n_features_in_ = W.shape[1]  # required to be sklearn compatible
         W, X, z = self._splitW(W)
 
         # Stage 1
         self.beta_c_ = ridge_weights(X, z, self.regulariser1)
         z_hat = X @ self.beta_c_
 
-        # Stage 2 - initialisation
-        beta = ridge_weights(W, y, self.regulariser2)
-        self.beta_ = np.delete(beta, self.adjust_tind_, axis=0)
-        alpha_0 = np.atleast_1d(beta[self.adjust_tind_])
-        beta_d_0 = self.beta_ + self.beta_c_ @ alpha_0
-        params_0 = np.concatenate([alpha_0, beta_d_0])
-
-        # Stage 2 - objective function
+        # Stage 2 - Make the z-columns residual columns
         r = z - z_hat
-        len_alpha = len(alpha_0)
+        Wres = W.copy()
+        Wres[:, self.adjust_tind_] = np.squeeze(r) if \
+            np.isscalar(self.adjust_tind_) else r
 
-        def objective(params: np.ndarray) -> float:
-            alpha, beta_d = params[:len_alpha], params[len_alpha:]
-            y_hat = r @ alpha + X @ beta_d
-            obj = np.sum((y - y_hat)**2) \
-                + self.regulariser2 * beta_d.T @ beta_d
-            return obj
+        # Stage 2 - Only regularise non-treatment weights
+        reg2_diag = np.ones(Wres.shape[1]) * self.regulariser2
+        reg2_diag[self.adjust_tind_] = 0.
 
-        # Stage 2 - gradient function
-        rTr = r.T @ r
-        rTy = r.T @ y
-        rTX = r.T @ X
-        XTX = X.T @ X
-        XTy = X.T @ y
-
-        def gradient(params: np.ndarray) -> np.ndarray:
-            alpha, beta_d = params[:len_alpha], params[len_alpha:]
-            dalpha = 2 * (rTr @ alpha - rTy + rTX @ beta_d)
-            dbeta_d = 2 * (XTX @ beta_d - XTy + rTX.T @ alpha
-                           + self.regulariser2 * beta_d)
-            dparams = np.concatenate([dalpha, dbeta_d])
-            return dparams
-
-        # Stage 2 - solve
-        res = minimize(objective, params_0, jac=gradient, method='L-BFGS-B',
-                       tol=self.tol)
-        self.alpha_ = res.x[:len_alpha]
-        self.beta_d_ = res.x[len_alpha:]
+        # Stage 2 - Compute the weights
+        weights = ridge_weights(Wres, y, gamma=reg2_diag)
+        self.alpha_ = np.atleast_1d(weights[self.adjust_tind_])
+        self.beta_d_ = np.delete(weights, self.adjust_tind_, axis=0)
 
         # Compute alpha variance and standard error (OLS)
         s2 = np.var(y - r @ self.alpha_ - X @ self.beta_d_, ddof=1)
+        rTr = r.T @ r
+        len_alpha = len(self.alpha_)
         if len_alpha == 1:
             self.var_alpha_ = s2 / np.squeeze(rTr)
             self.se_alpha_ = np.sqrt(self.var_alpha_)
         else:
-            self.var_alpha_ = solve(rTr, np.diag(np.full(len_alpha, s2)),
-                                    assume_a='pos')
+            s2I = np.diag(np.full(len_alpha, s2))
+            self.var_alpha_ = solve(rTr, s2I, assume_a='pos')
             self.se_alpha_ = np.sqrt(self.var_alpha_.diagonal())
+
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
@@ -138,7 +115,6 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             'regulariser1': self.regulariser1,
             'regulariser2': self.regulariser2,
             'fit_intercept': self.fit_intercept,
-            'tol': self.tol
         }
 
     def set_params(self, **parameters: dict):
