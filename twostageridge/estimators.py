@@ -159,10 +159,21 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         return W, X, z
 
 
-def ridge_weights(X: np.ndarray, Y: np.ndarray, gamma: float) -> np.ndarray:
+def ridge_weights(
+    X: np.ndarray,
+    Y: np.ndarray,
+    gamma: Union[float, np.ndarray]
+) -> np.ndarray:
     """Compute ridge regression weights."""
     N, D = X.shape
-    A = X.T @ X + np.diag(np.full(shape=D, fill_value=gamma))
+    if np.isscalar(gamma):
+        gamma_diag = np.full(shape=D, fill_value=gamma)
+    else:
+        if gamma.shape != (D,):
+            raise TypeError('gamma has to be a scalar or vector of X.shape[1]')
+        gamma_diag = gamma
+
+    A = X.T @ X + np.diag(gamma_diag)
     b = X.T @ Y
     weights = solve(A, b, assume_a='pos')
     return weights

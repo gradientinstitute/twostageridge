@@ -65,13 +65,15 @@ def test_intercept_checks(index, intercept):
     (make_dag1D_params(), make_dag1D_data()),
     (make_dag2D_params(), make_dag2D_data()),
 ])
-def test_ridge_weights(params, data):
+@pytest.mark.parametrize('reg_vec', [True, False])
+def test_ridge_weights(params, data, reg_vec):
     """Make sure ridge_weights can return an accurate estimate."""
     alpha, gamma, beta, eps, nu = params
     W, X, Y, Z = data
-
     Xint = np.hstack((X, np.ones((len(X), 1))))
-    gamma_rr = ridge_weights(Xint, Z, gamma=.1)[:-1, :]
+
+    reg = 0.1 * np.ones(Xint.shape[1]) if reg_vec else 0.1
+    gamma_rr = ridge_weights(Xint, Z, gamma=reg)[:-1, :]
     assert np.allclose(gamma_rr, gamma, rtol=0.01)
 
 
