@@ -4,7 +4,6 @@ import numpy as np
 from typing import Tuple, Optional, TypeVar, Union
 from functools import singledispatch
 
-from scipy.optimize import minimize
 from scipy.linalg import solve
 
 from sklearn.base import BaseEstimator, RegressorMixin
