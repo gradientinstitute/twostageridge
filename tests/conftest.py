@@ -22,8 +22,8 @@ def make_dag1D_params():
     alpha = np.array([0.9])
     gamma = np.array([[1.9]])
     beta = np.array([1.2])
-    eps = 0.1
-    nu = 0.1
+    eps = 0.3
+    nu = 0.3
     return alpha, gamma, beta, eps, nu
 
 
@@ -32,8 +32,8 @@ def make_dag2D_params():
     alpha = np.array([0.9, -0.5])
     gamma = np.array([[1.9, -2.7], [-0.6, 1.4]])
     beta = np.array([1.2, 3.2])
-    eps = 0.1
-    nu = 0.1
+    eps = 0.3
+    nu = 0.3
     return alpha, gamma, beta, eps, nu
 
 

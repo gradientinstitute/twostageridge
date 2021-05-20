@@ -21,7 +21,7 @@ def test_splitting():
     ind = 1
     labels = np.array([0, 1, 2])
     W = np.ones((10, 3)) * labels
-    Y = np.ones(10)
+    Y = np.random.randn(10)
 
     est = TwoStageRidge(treatment_index=ind, fit_intercept=False).fit(W, Y)
     W, X, z = est._splitW(W)
@@ -90,11 +90,11 @@ def test_estimator_weights(params, data):
     est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)
     est.fit(W, Y)
 
-    assert np.allclose(est.beta_c_[:-1, :], gamma, rtol=0.02)
-    assert np.allclose(est.alpha_, alpha, rtol=0.02)
+    assert np.allclose(est.beta_c_[:-1, :], gamma, rtol=0.01)
+    assert np.allclose(est.alpha_, alpha, rtol=0.01)
 
     se_alpha = np.sqrt(nu**2 / np.sum(Z**2))
-    assert np.allclose(se_alpha, est.se_alpha_, atol=0.02)
+    assert np.allclose(se_alpha, est.se_alpha_, atol=0.01)
 
 
 @pytest.mark.parametrize('params, data', [

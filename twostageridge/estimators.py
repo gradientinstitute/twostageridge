@@ -5,6 +5,7 @@ from typing import Tuple, Optional, TypeVar, Union
 from functools import singledispatch
 
 from scipy.linalg import solve
+from scipy.stats import t
 
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.utils import check_X_y, check_array
@@ -59,7 +60,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             np.isscalar(self.adjust_tind_) else r
 
         # Stage 2 - Only regularise non-treatment weights
-        reg2_diag = np.ones(Wres.shape[1]) * self.regulariser2
+        N, D = W.shape
+        reg2_diag = np.ones(D) * self.regulariser2
         reg2_diag[self.adjust_tind_] = 0.
 
         # Stage 2 - Compute the weights
@@ -67,18 +69,13 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         self.alpha_ = np.atleast_1d(weights[self.adjust_tind_])
         self.beta_d_ = np.delete(weights, self.adjust_tind_, axis=0)
 
-        # Compute alpha variance and standard error (OLS)
-        s2 = np.var(y - r @ self.alpha_ - X @ self.beta_d_, ddof=1)
-        rTr = r.T @ r
-        len_alpha = len(self.alpha_)
-        if len_alpha == 1:
-            self.var_alpha_ = s2 / np.squeeze(rTr)
-            self.se_alpha_ = np.sqrt(self.var_alpha_)
-        else:
-            s2I = np.diag(np.full(len_alpha, s2))
-            self.var_alpha_ = solve(rTr, s2I, assume_a='pos')
-            self.se_alpha_ = np.sqrt(self.var_alpha_.diagonal())
-
+        # Compute alpha standard error (OLS), t-statistic and p-value
+        eps = y - (r @ self.alpha_ + X @ self.beta_d_)
+        s2 = np.sum(eps**2) / (N - D)
+        rTr_diag = np.sum(r**2, axis=0)
+        self.se_alpha_ = np.sqrt(s2 / rTr_diag)
+        self.t_ = self.alpha_ / self.se_alpha_  # h0 is alpha = 0
+        self.p_ = (1. - t.cdf(np.abs(self.t_), df=N - D)) * 2  # h1 != 0
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
