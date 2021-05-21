@@ -70,6 +70,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         self.beta_d_ = np.delete(weights, self.adjust_tind_, axis=0)
 
         # Compute alpha standard error (OLS), t-statistic and p-value
+        #  I think this is more-or-less valid. We may have fewer degrees of
+        #  freedom though (see doi: 10.1186/1471-2105-12-372).
         eps = y - (r @ self.alpha_ + X @ self.beta_d_)
         s2 = np.sum(eps**2) / (N - D)
         rTr_diag = np.sum(r**2, axis=0)
