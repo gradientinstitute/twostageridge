@@ -100,7 +100,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             The `(N, D)` model covariates - which includes the controls *and*
             the treatment variables. The treatment variables should be indexed
             by `treatment_index` passed into this classes' constructor.
-        y: ndarray
+        y : ndarray
             The `(N,)` array of outcomes.
         """
         # Checks and input transforms
@@ -155,7 +155,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
         Returns
         -------
-        y_hat: ndarray
+        y_hat : ndarray
             The `(N,)` array of predicted outcomes (from the second stage
             model).
         """
@@ -193,7 +193,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 
         Returns
         -------
-        r_2 : float
+        r2 : float
             The R^2 score of the predictions. This is from a call to
             `sklearn.metrics.r2_score`, and so handles multiple outputs in the
             same fashion.
@@ -314,7 +314,7 @@ def _(treatment_index: np.ndarray, W: np.ndarray, fit_intercept: bool) \
         if (i >= D) or (i < -D):
             raise ValueError(f'treatment_index {i} is out of bounds.')
 
-        # Make sure adjust_tind_ indexes right weights for initialisation
+        # Make sure adjust_tind indexes right weights for initialisation
         if fit_intercept and (i < 0):
             adjust_tind[n] = D + treatment_index[n]
 
