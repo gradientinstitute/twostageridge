@@ -22,13 +22,61 @@ Self = TypeVar('Self', bound='TwoStageRidge')
 #
 
 class TwoStageRidge(BaseEstimator, RegressorMixin):
-    """Two stage ridge regression for causal response surface estimation."""
+    """Two stage ridge regression for causal response surface estimation.
+
+    Parameters
+    ----------
+    treatment_index : int, ndarray or slice
+        The column-index/indices into the covariates, W, indicating where the
+        treatment variable(s) are located.
+    regulariser1 : float
+        The regulariser coefficient over the first stage model weights. The
+        first stage is the treatment selection model. The first stage model
+        predicts the treatment variables from the control variables.
+    regulariser2 : float
+        The regularisation coefficient over the second stage model weights for
+        the control variables. The second stage model predicts the outcome
+        variable from the treatment variable prediction error (from the first
+        stage) and the control variables.
+    fit_intercept : bool
+        Fit and intercept term on the first and second stage models. This will
+        append a column of ones onto the model covariates, W.
+
+    Attributes
+    ----------
+    alpha_ : float or ndarray
+        The treatment effect coefficient(s).
+    beta_c_ : ndarray
+        The first stage model weights predicting the treatment.
+    beta_d_ : ndarray
+        The second stage model weights predicting the treatment from the
+        controls, X.
+    se_alpha_ : float or ndarray
+        The standard error(s) of alpha_.
+    t_ : float or ndarray
+        The t-statistic(s) of alpha_ with N - D degrees of freedom.
+    p_ : float or ndarray
+        The p-value(s) of alpha_ from a two-sided t-test with the null
+        hypothesis being alpha_ = 0.
+
+    Note
+    ----
+    The p-values computed are probably conservative. The actual degrees of
+    freedom is probably greater than N - D, since the effective number of
+    dimensions used is less than D. See the following reference for more
+    information.
+
+    Cule, E., Vineis, P. & De Iorio, M. Significance testing in ridge
+    regression for genetic data. BMC Bioinformatics 12, 372 (2011).
+    https://doi.org/10.1186/1471-2105-12-372
+    """
 
     def __init__(
         self,
-        treatment_index: Union[int, np.array, slice] = 0,
-        regulariser1: float = 0.1,
-        regulariser2: float = 0.1,
+        *,
+        treatment_index: Union[int, np.ndarray, slice] = 0,
+        regulariser1: float = 1.,
+        regulariser2: float = 1.,
         fit_intercept: bool = True
     ) -> None:
         """Instantiate a two-stage ridge regression estimator."""
@@ -41,7 +89,20 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         self.fit_intercept = fit_intercept
 
     def fit(self, W: np.ndarray, y: np.ndarray) -> Self:
-        """Fit the two-stage ridge regression estimator."""
+        """Fit the two-stage ridge regression estimator.
+
+        This will compute the treatment effect and store it in the `alpha_`
+        object attribute.
+
+        Parameters
+        ----------
+        W : ndarray
+            The `(N, D)` model covariates - which includes the controls *and*
+            the treatment variables. The treatment variables should be indexed
+            by `treatment_index` passed into this classes' constructor.
+        y: ndarray
+            The `(N,)` array of outcomes.
+        """
         # Checks and input transforms
         W, y = check_X_y(W, y, y_numeric=True)
         self.adjust_tind_ = _check_treatment_index(self.treatment_index, W,
@@ -81,7 +142,23 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
-        """Use the two-stage ridge regression estimator for prediction."""
+        """Use the two-stage ridge regression estimator for prediction.
+
+        This method is mainly useful for model selection.
+
+        Parameters
+        ----------
+        W : ndarray
+            The `(N, D)` model covariates - which includes the controls *and*
+            the treatment variables. The treatment variables should be indexed
+            by `treatment_index` passed into this classes' constructor.
+
+        Returns
+        -------
+        y_hat: ndarray
+            The `(N,)` array of predicted outcomes (from the second stage
+            model).
+        """
         check_is_fitted(self, attributes=['alpha_', 'beta_d_'])
         W = check_array(W)
         _, X, z = self._splitW(W)
@@ -90,7 +167,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         z_hat = X @ self.beta_c_
 
         # Stage 2
-        y_hat = (z - z_hat) @ self.alpha_ + X @ self.beta_d_
+        y_hat: np.ndarray = (z - z_hat) @ self.alpha_ + X @ self.beta_d_
         return y_hat
 
     def score_stage1(
@@ -98,16 +175,38 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         W: np.ndarray,
         sample_weight: Optional[np.ndarray] = None
     ) -> float:
-        """Get the R^2 score of the stage 1 regression model."""
+        """Get the R^2 score of the first stage regression model.
+
+        This is like the `score` function of scikit learn, but operates only on
+        the first stage regression model. That is, it is the score of how well
+        the model predicts the *treatments* from the *controls*.
+
+        Parameters
+        ----------
+        W : ndarray
+            The `(N, D)` model covariates - which includes the controls *and*
+            the treatment variables. The treatment variables should be indexed
+            by `treatment_index` passed into this classes' constructor.
+        sample_weight : ndarray
+            An array of shape `(N,)` of weights to give each sample in the
+            computation of the R^2 score.
+
+        Returns
+        -------
+        r_2 : float
+            The R^2 score of the predictions. This is from a call to
+            `sklearn.metrics.r2_score`, and so handles multiple outputs in the
+            same fashion.
+        """
         check_is_fitted(self, attributes=['alpha_', 'beta_d_'])
         W = check_array(W)
         _, X, z = self._splitW(W)
         z_hat = X @ self.beta_c_
-        r2 = r2_score(z, z_hat, sample_weight=sample_weight)
+        r2: float = r2_score(z, z_hat, sample_weight=sample_weight)
         return r2
 
     def get_params(self, deep: bool = True) -> dict:
-        """Get this estimators initialisation parameters."""
+        """Get this estimator's initialisation parameters."""
         return {
             'treatment_index': self.treatment_index,
             'regulariser1': self.regulariser1,
@@ -115,8 +214,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             'fit_intercept': self.fit_intercept,
         }
 
-    def set_params(self, **parameters: dict):
-        """Set this estimators initialisation parameters."""
+    def set_params(self, **parameters: dict) -> Self:
+        """Set this estimator's initialisation parameters."""
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
         return self
@@ -143,13 +242,13 @@ def ridge_weights(
     if np.isscalar(gamma):
         gamma_diag = np.full(shape=D, fill_value=gamma)
     else:
-        if gamma.shape != (D,):
+        if gamma.shape != (D,):  # type: ignore
             raise TypeError('gamma has to be a scalar or vector of X.shape[1]')
-        gamma_diag = gamma
+        gamma_diag = gamma  # type: ignore
 
     A = X.T @ X + np.diag(gamma_diag)
     b = X.T @ Y
-    weights = solve(A, b, assume_a='pos')
+    weights: np.ndarray = solve(A, b, assume_a='pos')
     return weights
 
 
@@ -158,11 +257,11 @@ def ridge_weights(
 #
 
 @singledispatch
-def _check_treatment_index(
+def _check_treatment_index(  # type: ignore
     treatment_index,
     W: np.ndarray,
     fit_intercept: bool
-) -> Union[int, np.array, slice]:
+) -> Union[int, np.ndarray, slice]:
     """Check for a valid treatment index into W."""
     raise TypeError('treatment_index must be an int, and array of int,'
                     ' or a slice.')
@@ -183,7 +282,7 @@ def _(treatment_index: int, W: np.ndarray, fit_intercept: bool) -> int:
     return adjust_tind
 
 
-@_check_treatment_index.register
+@_check_treatment_index.register  # type: ignore
 def _(treatment_index: slice, W: np.ndarray, fit_intercept: bool) -> slice:
     D = W.shape[1]
 
@@ -205,7 +304,7 @@ def _(treatment_index: slice, W: np.ndarray, fit_intercept: bool) -> slice:
     return adjust_tind
 
 
-@_check_treatment_index.register
+@_check_treatment_index.register  # type: ignore
 def _(treatment_index: np.ndarray, W: np.ndarray, fit_intercept: bool) \
         -> np.ndarray:
     D = W.shape[1]
