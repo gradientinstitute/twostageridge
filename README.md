@@ -4,9 +4,9 @@ TwoStageRidge
 A simple implementation of the two-stage ridge regression model described in
 Hahn et. al (2018) with a scikit-learn compatible API.
 
-Hahn, P.R., Carvalho, C.M., Puelz, D., He, J., 2018. Regularization and
-Confounding in Linear Regression for Treatment Effect Estimation. Bayesian
-Anal. 13. https://doi.org/10.1214/16-BA1044
+> Hahn, P.R., Carvalho, C.M., Puelz, D., He, J., 2018. Regularization and
+> Confounding in Linear Regression for Treatment Effect Estimation. Bayesian
+> Anal. 13. https://doi.org/10.1214/16-BA1044
 
 We have implemented maximum a-posteriori models rather than the fully 
 Bayesian treatment of the regression weights as described in (Hahn et. al,
