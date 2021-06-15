@@ -1,4 +1,6 @@
 """Test module for model_selection utilities."""
+# Copyright (c) Gradient Institute. All rights reserved.
+# Licensed under the Apache 2.0 License.
 
 import pytest
 

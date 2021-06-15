@@ -1,4 +1,6 @@
 """Define the two-stage ridge regression estimator."""
+# Copyright (c) Gradient Institute. All rights reserved.
+# Licensed under the Apache 2.0 License.
 
 import numpy as np
 from typing import Tuple, Optional, TypeVar, Union
