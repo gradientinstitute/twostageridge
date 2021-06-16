@@ -33,21 +33,27 @@ No regularisation is applied to α. This formulation leads to a less biased
 estimation of α over alternate ridge regression models. We can get an intuition
 for this from the following graphical model,
 
-<img src="images/two_stage_dag.png" width="40%" />
+<p align="center"><img src="images/two_stage_dag.png" width="50%" /></p>
 
 Here round nodes with letters inside are random variables, square nodes are
 deterministic functions, and ⊕ is addition/subtraction. Arrows denote the
 direction of flow. This can be interpreted like a typical triangle graphical
-model denoting the causal relationships X 🠖 Y, X 🠖 Z and Z 🠖 Y but with the
-addition of the stage 1 and 2 modelling influences.
+model denoting the causal relationships **X** 🠖 Y, **X** 🠖 Z and Z 🠖 Y but 
+with the addition of the stage 1 and 2 modelling influences from the
+equations above. Here r = Z - **X**β<sub>c</sub>.
 
 We can see that the influence of the control variables, **X**, on the
-treatment, Z, has explicitly been removed when predicting **Y** on the path Z 🠖
+treatment, Z, has explicitly been removed when predicting Y on the path Z 🠖
 Y. That is, only the "residual" signal from the treatment variables, r, that is
 not explained by the control variables is allowed to influence Y through α.
-This results in the bias of alpha being a function of the regularisation
-strength and the residual r, instead of the treatments Z, which results in a
-low bias (but higher variance) estimator of α. 
+This results in the estimation bias of α being a function of the residual r
+(Equation 7; Hahn et. al 2018), instead of the treatments Z
+(Equation 3; Hahn et. al 2018). Since r is close to zero (depending on the
+strength of the regularisation) we end up with a low bias, but higher variance,
+estimator of α. The estimator is higher variance since Var(α|r) = 
+σ<sup>2</sup><sub>ν</sub> / (Σ<sub>i</sub> r<sup>2</sup><sub>i</sub>) instead 
+of Var(α|Z) = 
+σ<sup>2</sup><sub>ν</sub> / (Σ<sub>i</sub> z<sup>2</sup><sub>i</sub>).
 
 
 Installation
