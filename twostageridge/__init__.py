@@ -3,4 +3,4 @@
 # Licensed under the Apache 2.0 License.
 
 from .estimators import TwoStageRidge, ridge_weights
-from .metrics import first_stage_r2_score
+from .metrics import make_first_stage_scorer, make_combined_stage_scorer

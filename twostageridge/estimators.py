@@ -172,6 +172,34 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         y_hat: np.ndarray = (z - z_hat) @ self.alpha_ + X @ self.beta_d_
         return y_hat
 
+    def predict_stage1(self, W: np.ndarray) -> np.ndarray:
+        """Predict the treatments using only the first stage model.
+
+        This method is mainly useful for model selection.
+
+        Parameters
+        ----------
+        W : ndarray
+            The `(N, D)` model covariates - which includes the controls *and*
+            the treatment variables. The treatment variables should be indexed
+            by `treatment_index` passed into this classes' constructor.
+
+        Returns
+        -------
+        z_hat : ndarray
+            The `(N, K)` array of predicted outcomes (from the second stage
+            model).
+        z : ndarray
+            The array of extracted treatment targets.
+        """
+        check_is_fitted(self, attributes=['alpha_', 'beta_d_'])
+        W = check_array(W)
+        _, X, z = self._splitW(W)
+
+        # Stage 1
+        z_hat = X @ self.beta_c_
+        return z_hat, z
+
     def score_stage1(
         self,
         W: np.ndarray,
@@ -200,10 +228,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             `sklearn.metrics.r2_score`, and so handles multiple outputs in the
             same fashion.
         """
-        check_is_fitted(self, attributes=['alpha_', 'beta_d_'])
-        W = check_array(W)
-        _, X, z = self._splitW(W)
-        z_hat = X @ self.beta_c_
+        z_hat, z = self.predict_stage1(W)
         r2: float = r2_score(z, z_hat, sample_weight=sample_weight)
         return r2
 
