@@ -278,7 +278,19 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         return r2
 
     def model_statistics(self) -> StatisticalResults:
-        """Return the model statistics."""
+        """Return the model statistics.
+
+        This will throw an error if the model has not been fitted.
+
+        Returns
+        -------
+        stats: StatisticalResults
+            The model statistics, including the average treatment effect, its
+            standard error, the degrees of freedom used to compute the standard
+            error, and a t-statistic and p-value for a two sided t-test to see
+            if the average treatment effect is significantly different from
+            zero.
+        """
         check_is_fitted(self, attributes=['alpha_', 'se_alpha_'])
         stats = StatisticalResults(
             alpha=np.squeeze(self.alpha_),
