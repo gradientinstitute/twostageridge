@@ -3,7 +3,7 @@
 # Licensed under the Apache 2.0 License.
 
 import numpy as np
-from typing import Tuple, Optional, TypeVar, Union
+from typing import Tuple, Optional, TypeVar, Union, NamedTuple
 from functools import singledispatch
 
 from scipy.linalg import solve
@@ -22,6 +22,50 @@ Self = TypeVar('Self', bound='TwoStageRidge')
 #
 # Public classes and functions
 #
+
+class StatisticalResults(NamedTuple):
+    """Statistical results object.
+
+    Attributes
+    ----------
+    alpha: float or ndarray
+        The estimated effect size(s) (ATE) for each treatment.
+    std_err: float or ndarray
+        The standard error of the estimated effect size(s) (ATE) for each
+        treatment.
+    t_stat: float or ndarray
+        The t-statistics for the estimated effect size(s) (ATE) for each
+        treatment.
+    p_value: float or ndarray
+        The p-value of the two-sided t-test on the treatment effects.  The null
+        hypothesis is that alpha = 0, and the alternate hypothesis is alpha !=
+        0.
+    dof: int
+        The degrees of freedom used to compute the standard error and the
+        t-test.
+    """
+
+    alpha: Union[float, np.ndarray]
+    std_err: Union[float, np.ndarray]
+    t_stat: Union[float, np.ndarray]
+    p_value: Union[float, np.ndarray]
+    dof: int
+
+    def __repr__(self) -> str:
+        """Return string representation of StatisticalResults."""
+        reprs = f"""Statistical results:
+            alpha =
+                {self.alpha},
+            s.e.(alpha) =
+                {self.std_err}
+            t-statistic(s):
+                {self.t_stat}
+            p-value(s):
+                {self.p_value}
+            Degrees of freedom: {self.dof}
+            """
+        return reprs
+
 
 class TwoStageRidge(BaseEstimator, RegressorMixin):
     """Two stage ridge regression for causal response surface estimation.
@@ -136,11 +180,12 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         #  I think this is more-or-less valid. We may have fewer degrees of
         #  freedom though (see doi: 10.1186/1471-2105-12-372).
         eps = y - (r @ self.alpha_ + X @ self.beta_d_)
-        s2 = np.sum(eps**2) / (N - D)
+        self.dof_ = N - D  # degrees of freedom for OLS, this is conservative
+        s2 = np.sum(eps**2) / self.dof_
         rTr_diag = np.sum(r**2, axis=0)
         self.se_alpha_ = np.sqrt(s2 / rTr_diag)
         self.t_ = self.alpha_ / self.se_alpha_  # h0 is alpha = 0
-        self.p_ = (1. - t.cdf(np.abs(self.t_), df=N - D)) * 2  # h1 != 0
+        self.p_ = (1. - t.cdf(np.abs(self.t_), df=self.dof_)) * 2  # h1 != 0
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
@@ -172,7 +217,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         y_hat: np.ndarray = (z - z_hat) @ self.alpha_ + X @ self.beta_d_
         return y_hat
 
-    def predict_stage1(self, W: np.ndarray) -> np.ndarray:
+    def predict_stage1(self, W: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Predict the treatments using only the first stage model.
 
         This method is mainly useful for model selection.
@@ -231,6 +276,18 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         z_hat, z = self.predict_stage1(W)
         r2: float = r2_score(z, z_hat, sample_weight=sample_weight)
         return r2
+
+    def model_statistics(self) -> StatisticalResults:
+        """Return the model statistics."""
+        check_is_fitted(self, attributes=['alpha_', 'se_alpha_'])
+        stats = StatisticalResults(
+            alpha=np.squeeze(self.alpha_),
+            std_err=np.squeeze(self.se_alpha_),
+            dof=self.dof_,
+            t_stat=np.squeeze(self.t_),
+            p_value=np.squeeze(self.p_)
+        )
+        return stats
 
     def get_params(self, deep: bool = True) -> dict:
         """Get this estimator's initialisation parameters."""

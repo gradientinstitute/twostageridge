@@ -132,3 +132,25 @@ def test_predict_stage1(params, data):
 
     assert z_hat.shape == z.shape == Z.shape
     assert np.all(Z == z)
+
+
+@pytest.mark.parametrize('params, data', [
+    (make_dag1D_params(), make_dag1D_data()),
+    (make_dag2D_params(), make_dag2D_data()),
+])
+def test_stats(params, data):
+    """Make sure the computed statistics are the correct dimensions."""
+    alpha, gamma, beta, eps, nu = params
+    W, X, Y, Z = data
+    ti = slice(0, len(alpha))
+
+    est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)
+    est.fit(W, Y)
+    stats = est.model_statistics()
+
+    alpha = np.squeeze(alpha)
+    assert np.shape(stats.alpha) == np.shape(alpha)
+    assert np.shape(stats.std_err) == np.shape(alpha)
+    assert np.shape(stats.p_value) == np.shape(alpha)
+    assert np.shape(stats.t_stat) == np.shape(alpha)
+    assert np.isscalar(stats.dof)

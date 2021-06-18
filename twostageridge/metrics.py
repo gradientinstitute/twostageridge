@@ -3,7 +3,7 @@
 # Licensed under the Apache 2.0 License.
 
 import numpy as np
-from typing import Optional, Union
+from typing import Optional, Union, Callable, Any
 from operator import add
 
 from sklearn.pipeline import Pipeline
@@ -11,11 +11,11 @@ from twostageridge import TwoStageRidge
 
 
 def make_first_stage_scorer(
-    score_func: callable,
+    score_func: Callable,
     *,
     greater_is_better: bool = True,
-    **kwargs
-) -> callable:
+    **kwargs: Any
+) -> Callable:
     """
     Make a scorer for the first stage of a two stage ridge estimator.
 
@@ -49,12 +49,12 @@ def make_first_stage_scorer(
 
 
 def make_combined_stage_scorer(
-    score_func: callable,
+    score_func: Callable,
     *,
     greater_is_better: bool = True,
-    combine_func: callable = add,
-    **kwargs
-) -> callable:
+    combine_func: Callable = add,
+    **kwargs: Any
+) -> Callable:
     """
     Make a scorer for both stages of a two stage ridge estimator.
 
@@ -98,7 +98,7 @@ def make_combined_stage_scorer(
         fs_score = fs_scorer(estimator, W, y, sample_weight)
         y_hat = estimator.predict(W)
         ss_score = score_func(y, y_hat, sample_weight=sample_weight)
-        score = combine_func(fs_score, ss_score)
+        score: float = combine_func(fs_score, ss_score)
         return score
 
     return scorer
@@ -109,14 +109,19 @@ def make_combined_stage_scorer(
 #
 
 def _partial_scorefn(
-        score_func: callable,
-        greater_is_better: bool, **kwargs
-) -> callable:
+        score_func: Callable,
+        greater_is_better: bool,
+        **kwargs: Any
+) -> Callable:
     """Return a partial score function with the sign optionally flipped."""
 
-    def scorefn(y_true, y_pred, sample_weight):
-        score = score_func(y_true, y_pred, sample_weight=sample_weight,
-                           **kwargs)
+    def scorefn(
+            y_true: np.ndarray,
+            y_pred: np.ndarray,
+            sample_weight: Optional[np.ndarray]
+    ) -> float:
+        score: float = score_func(y_true, y_pred, sample_weight=sample_weight,
+                                  **kwargs)
         if not greater_is_better:
             score = -score
         return score
@@ -124,7 +129,7 @@ def _partial_scorefn(
     return scorefn
 
 
-def _partial_fs_scorer(scorefn: callable) -> callable:
+def _partial_fs_scorer(scorefn: Callable) -> Callable:
     """Return a partial scorer function for the first stage model."""
 
     def scorer(
@@ -170,7 +175,7 @@ def _partial_fs_scorer(scorefn: callable) -> callable:
                             'must be a TwoStageRidge estimator!')
 
         z_hat, z = model.predict_stage1(Wt)
-        score = scorefn(z, z_hat, sample_weight)
+        score: float = scorefn(z, z_hat, sample_weight)
         return score
 
     return scorer
