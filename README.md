@@ -104,13 +104,13 @@ array or a slice.
 API
 ---
 
-| **Class/Function**                   | **Description**                                                    |
-|--------------------------------------|--------------------------------------------------------------------|
-| `estimators.TwoStageRidge`           | Two stage ridge regression for causal response surface estimation. |
-| `estimators.StatisticalResults`      | Statistical results object.                                        |
-| `estimators.ridge_weights`           | Compute ridge regression weights.                                  |
-| `metrics.make_first_stage_scorer`    | Make a scorer for the first stage of a two stage ridge estimator.  |
-| `metrics.make_combined_stage_scorer` | Make a scorer for both stages of a two stage ridge estimator.      |
+| **Class/Function**                                               | **Description**                                                    |
+|------------------------------------------------------------------|--------------------------------------------------------------------|
+| [`estimators.TwoStageRidge`](twostageridge/estimators.py)        | Two stage ridge regression for causal response surface estimation. |
+| [`estimators.StatisticalResults`](twostageridge/estimators.py)   | Statistical results object.                                        |
+| [`estimators.ridge_weights`](twostageridge/estimators.py)        | Compute ridge regression weights.                                  |
+| [`metrics.make_first_stage_scorer`](twostageridge/metrics.py)    | Make a scorer for the first stage of a two stage ridge estimator.  |
+| [`metrics.make_combined_stage_scorer`](twostageridge/metrics.py) | Make a scorer for both stages of a two stage ridge estimator.      |
 
 
 License
