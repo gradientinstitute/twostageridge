@@ -114,3 +114,21 @@ def test_score_treatments(params, data):
     est.fit(W, Y)
 
     assert est.score_stage1(W) > .95
+
+
+@pytest.mark.parametrize('params, data', [
+    (make_dag1D_params(), make_dag1D_data()),
+    (make_dag2D_params(), make_dag2D_data()),
+])
+def test_predict_stage1(params, data):
+    """Make sure the stage 1 predictions are returning expected results."""
+    alpha, gamma, beta, eps, nu = params
+    W, X, Y, Z = data
+    ti = slice(0, len(alpha))
+
+    est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)
+    est.fit(W, Y)
+    z_hat, z = est.predict_stage1(W)
+
+    assert z_hat.shape == z.shape == Z.shape
+    assert np.all(Z == z)
