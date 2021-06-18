@@ -89,17 +89,28 @@ W = np.hstack((Z[:, np.newaxis], X))
 ts = TwoStageRidge(treatment_index=0)  # Column index of the treatment variable
 ts.fit(W, Y)  # estimate causal effect, alpha
 
-print(f"α = {ts.alpha_}, s.e.(α) = {ts.se_alpha_}, p-value = {ts.p_}")
+print(ts.model_statistics())
 ```
 
-This will print out the estimated average treatment effect, standard error, and
-p-value of a two-sided t-test against a null hypothesis of α = 0. For more
-information on how to use this model, and how to perform model selection for
-the model parameters, see the [notebooks](notebooks).
+This will print out the estimated average treatment effect, standard error,
+t-statistic, p-value and degrees of freedom of a two-sided t-test against a null 
+hypothesis of α = 0. For more information on how to use this model, and how to
+perform model selection for the model parameters, see the [notebooks](notebooks).
 
 Vector treatments, **Z**, can also be inferred. You just have to specify the
 column indices of all treatment variables in `W`. For this you can use a numpy
 array or a slice.
+
+API
+---
+
+| **Class/Function**                   | **Description**                                                    |
+|--------------------------------------|--------------------------------------------------------------------|
+| `estimators.TwoStageRidge`           | Two stage ridge regression for causal response surface estimation. |
+| `estimators.StatisticalResults`      | Statistical results object.                                        |
+| `estimators.ridge_weights`           | Compute ridge regression weights.                                  |
+| `metrics.make_first_stage_scorer`    | Make a scorer for the first stage of a two stage ridge estimator.  |
+| `metrics.make_combined_stage_scorer` | Make a scorer for both stages of a two stage ridge estimator.      |
 
 
 License
