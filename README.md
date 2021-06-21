@@ -101,6 +101,7 @@ Vector treatments, **Z**, can also be inferred. You just have to specify the
 column indices of all treatment variables in `W`. For this you can use a numpy
 array or a slice.
 
+
 API
 ---
 
@@ -111,6 +112,16 @@ API
 | [`estimators.ridge_weights`](twostageridge/estimators.py)        | Compute ridge regression weights.                                  |
 | [`metrics.make_first_stage_scorer`](twostageridge/metrics.py)    | Make a scorer for the first stage of a two stage ridge estimator.  |
 | [`metrics.make_combined_stage_scorer`](twostageridge/metrics.py) | Make a scorer for both stages of a two stage ridge estimator.      |
+
+
+Notebooks
+---------
+
+| **Notebook**                                                                         | **Description**                                                  |
+|--------------------------------------------------------------------------------------|------------------------------------------------------------------|
+| [`model_selection`](notebooks/model_selection.ipynb) | A demonstration of how to perform model selection using scikit-learn tools.                      |
+| [`regularisation_bias_exploration`](notebooks/regularisation_bias_exploration.ipynb) | Experiments exploring how regularisation impacts ATE estimation. |
+| [`two_stage_ridge_comparison`](notebooks/two_stage_ridge_comparison.ipynb)           | Ridge regression ATE estimation comparison.                      |
 
 
 License
