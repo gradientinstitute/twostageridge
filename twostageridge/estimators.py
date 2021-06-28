@@ -180,7 +180,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         #  I think this is more-or-less valid. We may have fewer degrees of
         #  freedom though (see doi: 10.1186/1471-2105-12-372).
         eps = y - (r @ self.alpha_ + X @ self.beta_d_)
-        self.dof_ = N - D  # degrees of freedom for OLS, this is conservative
+        self.dof_ = max(N - D, 1)  # degrees of freedom, this is conservative
         s2 = np.sum(eps**2) / self.dof_
         rTr_diag = np.sum(r**2, axis=0)
         self.se_alpha_ = np.sqrt(s2 / rTr_diag)
