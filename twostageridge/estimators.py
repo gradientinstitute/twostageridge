@@ -331,9 +331,33 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
 def ridge_weights(
     X: np.ndarray,
     Y: np.ndarray,
-    gamma: Union[float, np.ndarray]
+    gamma: Union[float, np.ndarray],
+    return_pinv: bool = False
 ) -> np.ndarray:
-    """Compute ridge regression weights."""
+    """Compute ridge regression weights.
+
+    Parameters
+    ----------
+    X : ndarray
+        The `(N, D)` model covariates - which includes the controls *and*
+        the treatment variables. The treatment variables should be indexed
+        by `treatment_index` passed into this classes' constructor.
+    Y : ndarray
+        The `(N, P)` array of outcomes.
+    gamma : float or ndarray
+        The regulariser coefficient. This can be a float, or an array of shape
+        `(D,)` to apply a different regularisation to each dimension of X.
+    return_pinv : bool
+        return the psuedo-inverse, (X @ X.T)^-1 @ X, as well as the weights.
+        This takes longer to compute, but can be used to compute the standard
+        error of the weights.
+
+    Returns
+    -------
+    weights : np.ndarray
+        An array of shape `(D, P)` of regression weights.
+
+    """
     N, D = X.shape
     if np.isscalar(gamma):
         gamma_diag = np.full(shape=D, fill_value=gamma)
