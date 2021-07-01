@@ -121,7 +121,7 @@ Notebooks
 |--------------------------------------------------------------------------------------|------------------------------------------------------------------|
 | [`model_selection`](notebooks/model_selection.ipynb) | A demonstration of how to perform model selection using scikit-learn tools.                      |
 | [`regularisation_bias_exploration`](notebooks/regularisation_bias_exploration.ipynb) | Experiments exploring how regularisation impacts ATE estimation. |
-| [`two_stage_ridge_comparison`](notebooks/two_stage_ridge_comparison.ipynb)           | Ridge regression ATE estimation comparison.                      |
+| [`dimensionality_effect`](notebooks/dimensionality_effect.ipynb)                     | A demonstration of how dimensionality and co-linearity influences effect estimation |
 
 
 License
