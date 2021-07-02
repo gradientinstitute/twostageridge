@@ -76,8 +76,14 @@ def test_ridge_weights(params, data, reg_vec):
     Xint = np.hstack((X, np.ones((len(X), 1))))
 
     reg = 0.1 * np.ones(Xint.shape[1]) if reg_vec else 0.1
-    gamma_rr = ridge_weights(Xint, Z, gamma=reg)[:-1, :]
+    gamma_rr, _, _ = ridge_weights(Xint, Z, gamma=reg)
+    gamma_rr = gamma_rr[:-1, :]
     assert np.allclose(gamma_rr, gamma, rtol=0.01)
+
+
+def test_ridge_dof():
+    """Test estimated degrees of freedom for the ridge regressor."""
+    raise NotImplementedError('TODO!!!')
 
 
 @pytest.mark.parametrize('params, data', [

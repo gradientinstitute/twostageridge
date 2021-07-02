@@ -40,16 +40,15 @@ class StatisticalResults(NamedTuple):
         The p-value of the two-sided t-test on the treatment effects.  The null
         hypothesis is that alpha = 0, and the alternate hypothesis is alpha !=
         0.
-    dof: int
-        The degrees of freedom used to compute the standard error and the
-        t-test.
+    dof: float
+        The degrees of freedom used to compute the t-test.
     """
 
     alpha: Union[float, np.ndarray]
     std_err: Union[float, np.ndarray]
     t_stat: Union[float, np.ndarray]
     p_value: Union[float, np.ndarray]
-    dof: int
+    dof: float
 
     def __repr__(self) -> str:
         """Return string representation of StatisticalResults."""
@@ -104,17 +103,19 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
     p_ : float or ndarray
         The p-value(s) of alpha_ from a two-sided t-test with the null
         hypothesis being alpha_ = 0.
+    dof_t_: float
+        The degrees of freedom used to compute the t-test.
 
     Note
     ----
-    The p-values computed are probably conservative. The actual degrees of
-    freedom is probably greater than N - D, since the effective number of
-    dimensions used is less than D. See the following reference for more
-    information.
+    The degrees of freedom for the t-test and the regression residual mean
+    square error are computed according to [1].
 
-    Cule, E., Vineis, P. & De Iorio, M. Significance testing in ridge
-    regression for genetic data. BMC Bioinformatics 12, 372 (2011).
-    https://doi.org/10.1186/1471-2105-12-372
+    References
+    ----------
+    [1] Cule, E., Vineis, P. & De Iorio, M. Significance testing in ridge
+        regression for genetic data. BMC Bioinformatics 12, 372 (2011).
+        https://doi.org/10.1186/1471-2105-12-372
     """
 
     def __init__(
@@ -157,7 +158,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         W, X, z = self._splitW(W)
 
         # Stage 1
-        self.beta_c_ = ridge_weights(X, z, self.regulariser1)
+        self.beta_c_, _, _ = ridge_weights(X, z, self.regulariser1, False)
         z_hat = X @ self.beta_c_
 
         # Stage 2 - Make the z-columns residual columns
@@ -172,20 +173,17 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         reg2_diag[self.adjust_tind_] = 0.
 
         # Stage 2 - Compute the weights
-        weights = ridge_weights(Wres, y, gamma=reg2_diag)
+        weights, self.dof_t_, dof_s = ridge_weights(Wres, y, reg2_diag, True)
         self.alpha_ = np.atleast_1d(weights[self.adjust_tind_])
         self.beta_d_ = np.delete(weights, self.adjust_tind_, axis=0)
 
-        # Compute alpha standard error (OLS), t-statistic and p-value
-        #  I think this is more-or-less valid. We may have fewer degrees of
-        #  freedom though (see doi: 10.1186/1471-2105-12-372).
+        # Compute alpha standard error t-statistic and p-value
         eps = y - (r @ self.alpha_ + X @ self.beta_d_)
-        self.dof_ = max(N - D, 1)  # degrees of freedom, this is conservative
-        s2 = np.sum(eps**2) / self.dof_
+        s2 = np.sum(eps**2) / dof_s
         rTr_diag = np.sum(r**2, axis=0)
         self.se_alpha_ = np.sqrt(s2 / rTr_diag)
         self.t_ = self.alpha_ / self.se_alpha_  # h0 is alpha = 0
-        self.p_ = (1. - t.cdf(np.abs(self.t_), df=self.dof_)) * 2  # h1 != 0
+        self.p_ = (1. - t.cdf(np.abs(self.t_), df=self.dof_t_)) * 2  # h1 != 0
         return self
 
     def predict(self, W: np.ndarray) -> np.ndarray:
@@ -295,7 +293,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         stats = StatisticalResults(
             alpha=np.squeeze(self.alpha_),
             std_err=np.squeeze(self.se_alpha_),
-            dof=self.dof_,
+            dof=self.dof_t_,
             t_stat=np.squeeze(self.t_),
             p_value=np.squeeze(self.p_)
         )
@@ -332,9 +330,9 @@ def ridge_weights(
     X: np.ndarray,
     Y: np.ndarray,
     gamma: Union[float, np.ndarray],
-    return_pinv: bool = False
-) -> np.ndarray:
-    """Compute ridge regression weights.
+    compute_dof: bool = True
+) -> Tuple[np.ndarray, float, float]:
+    """Compute ridge regression weights and degrees of freedom.
 
     Parameters
     ----------
@@ -347,16 +345,31 @@ def ridge_weights(
     gamma : float or ndarray
         The regulariser coefficient. This can be a float, or an array of shape
         `(D,)` to apply a different regularisation to each dimension of X.
-    return_pinv : bool
-        return the psuedo-inverse, (X @ X.T)^-1 @ X, as well as the weights.
-        This takes longer to compute, but can be used to compute the standard
-        error of the weights.
+    compute_dof : bool
+        Compute the degrees of freedom for ridge regression using the effective
+        degrees of freedom. If this is true the effective degrees of freedom
+        are computed using the method in [1]. If false, then the OLS degrees of
+        freedom (N - D) is returned. The OLS degrees of freedom is
+        substantially faster to compute, but it is conservative.
 
     Returns
     -------
     weights : np.ndarray
         An array of shape `(D, P)` of regression weights.
+    dof_t : float
+        The degrees of freedom for a t-test of the regression weights. This is
+        N - D if `compute_dof = False` otherwise this is `N - trace(H)` for the
+        hat matrix `H`. See [1].
+    dof_s : float
+        The degrees of freedom the residual mean square of the regression fit.
+        This is N - D if `compute_dof = False` otherwise this is `N - trace(2H
+        - H @ H.T)` for the hat matrix `H`. See [1].
 
+    References
+    ----------
+    [1] Cule, E., Vineis, P. & De Iorio, M. Significance testing in ridge
+        regression for genetic data. BMC Bioinformatics 12, 372 (2011).
+        https://doi.org/10.1186/1471-2105-12-372
     """
     N, D = X.shape
     if np.isscalar(gamma):
@@ -367,9 +380,22 @@ def ridge_weights(
         gamma_diag = gamma  # type: ignore
 
     A = X.T @ X + np.diag(gamma_diag)
-    b = X.T @ Y
-    weights: np.ndarray = solve(A, b, assume_a='pos')
-    return weights
+    if not compute_dof:
+        weights: np.ndarray = solve(a=A, b=X.T @ Y, assume_a='pos')
+        dof = float(N - D)
+        return weights, dof, dof
+
+    # It would be faster to solve A with b=X.T @ y, but we need iX
+    iX = solve(a=A, b=X.T, assume_a='pos')
+    weights: np.ndarray = iX @ Y  # type: ignore
+
+    # Degrees of freedom
+    h = iX @ X  # this is a DxD version of the NxN "hat" matrix, X @ Xi
+    trh = float(np.trace(h))  # same as trace(H)
+    dof_t: float = N - trh  # t-test
+    dof_s: float = N - 2 * trh + np.sum(h**2)  # sum(h**2) == trace(H @ H.T)
+
+    return weights, dof_t, dof_s
 
 
 #
