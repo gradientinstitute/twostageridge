@@ -103,7 +103,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
     p_ : float or ndarray
         The p-value(s) of alpha_ from a two-sided t-test with the null
         hypothesis being alpha_ = 0.
-    dof_t_: float
+    dof_t_ : float
         The degrees of freedom used to compute the t-test.
 
     Note
@@ -180,8 +180,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         # Compute alpha standard error t-statistic and p-value
         eps = y - (r @ self.alpha_ + X @ self.beta_d_)
         s2 = np.sum(eps**2) / dof_s
-        rTr_diag = np.sum(r**2, axis=0)
-        self.se_alpha_ = np.sqrt(s2 / rTr_diag)
+        self.se_alpha_ = np.sqrt(s2 / np.sum(r**2, axis=0))
         self.t_ = self.alpha_ / self.se_alpha_  # h0 is alpha = 0
         self.p_ = (1. - t.cdf(np.abs(self.t_), df=self.dof_t_)) * 2  # h1 != 0
         return self
@@ -379,7 +378,10 @@ def ridge_weights(
             raise TypeError('gamma has to be a scalar or vector of X.shape[1]')
         gamma_diag = gamma  # type: ignore
 
-    A = X.T @ X + np.diag(gamma_diag)
+    # Inner product of X with ridge weights added to diag X.T @ X + diag(gamma)
+    A = X.T @ X
+    A[np.diag_indices(D)] += gamma_diag
+
     if not compute_dof:
         weights: np.ndarray = solve(a=A, b=X.T @ Y, assume_a='pos')
         dof = float(N - D)

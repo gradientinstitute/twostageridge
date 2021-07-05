@@ -5,6 +5,7 @@
 import numpy as np
 import pytest
 
+from scipy.linalg import solve
 from sklearn.utils.estimator_checks import check_estimator
 
 from twostageridge import TwoStageRidge, ridge_weights
@@ -81,9 +82,35 @@ def test_ridge_weights(params, data, reg_vec):
     assert np.allclose(gamma_rr, gamma, rtol=0.01)
 
 
-def test_ridge_dof():
+def test_ridge_dof(make_random):
     """Test estimated degrees of freedom for the ridge regressor."""
-    raise NotImplementedError('TODO!!!')
+    N, D = 500, 250
+    gamma = 100
+    rand = make_random
+    X = rand.randn(N, D)
+    Y = X @ rand.randn(D) + rand.randn(N)
+
+    # test OLS dof
+    ols_dof = N - D
+    _, dof_t, dof_s = ridge_weights(X, Y, gamma=gamma, compute_dof=False)
+    assert dof_t == dof_s
+    assert dof_t == ols_dof
+
+    # test ridge dof, these should be bigger than OLS since regularisation
+    # reduces the effective dimensionality of the features.
+    _, dof_t, dof_s = ridge_weights(X, Y, gamma=gamma, compute_dof=True)
+    assert dof_t > ols_dof
+    assert dof_s > ols_dof
+    assert dof_t > dof_s
+
+    # make sure the low dimensional computations match the full dimensionality
+    H = X @ solve(X.T @ X + gamma * np.eye(D), X.T, assume_a='pos')
+
+    dof_t_full = N - np.trace(H)
+    assert np.allclose(dof_t, dof_t_full)
+
+    dof_s_full = N - np.trace(2*H - H @ H.T)
+    assert np.allclose(dof_s, dof_s_full)
 
 
 @pytest.mark.parametrize('params, data', [
