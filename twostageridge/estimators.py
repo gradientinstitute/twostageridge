@@ -5,6 +5,7 @@
 import numpy as np
 from typing import Tuple, Optional, TypeVar, Union, NamedTuple
 from functools import singledispatch
+from warnings import warn
 
 from scipy.linalg import solve
 from scipy.stats import t
@@ -86,6 +87,14 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
     fit_intercept : bool
         Fit and intercept term on the first and second stage models. This will
         append a column of ones onto the model covariates, W.
+    ols_dof : bool
+        Use the degrees-of-freedom from and OLS model instead of a ridge model.
+        This results in dof = N - D where N are the number of samples, and D is
+        the dimensionality of the control and treatment variables. This will
+        result in biased but conservative p-values and is very fast to compute.
+        We recommend only using this if the ridge model degrees of freedom
+        becomes too expensive to compute (during model selection for example).
+        See [1] for more information.
 
     Attributes
     ----------
@@ -109,7 +118,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
     Note
     ----
     The degrees of freedom for the t-test and the regression residual mean
-    square error are computed according to [1].
+    square error are computed according to [1] if ols_dof=False.
 
     References
     ----------
@@ -124,7 +133,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         treatment_index: Union[int, np.ndarray, slice] = 0,
         regulariser1: float = 1.,
         regulariser2: float = 1.,
-        fit_intercept: bool = True
+        fit_intercept: bool = True,
+        ols_dof: bool = False
     ) -> None:
         """Instantiate a two-stage ridge regression estimator."""
         if (regulariser1 < 0) or (regulariser2 < 0):
@@ -134,6 +144,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         self.regulariser1 = regulariser1
         self.regulariser2 = regulariser2
         self.fit_intercept = fit_intercept
+        self.ols_dof = ols_dof
 
     def fit(self, W: np.ndarray, y: np.ndarray) -> Self:
         """Fit the two-stage ridge regression estimator.
@@ -158,7 +169,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         W, X, z = self._splitW(W)
 
         # Stage 1
-        self.beta_c_, _, _ = ridge_weights(X, z, self.regulariser1, False)
+        self.beta_c_, _, _ = ridge_weights(X, z, self.regulariser1, True)
         z_hat = X @ self.beta_c_
 
         # Stage 2 - Make the z-columns residual columns
@@ -173,7 +184,8 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
         reg2_diag[self.adjust_tind_] = 0.
 
         # Stage 2 - Compute the weights
-        weights, self.dof_t_, dof_s = ridge_weights(Wres, y, reg2_diag, True)
+        weights, dof_t, dof_s = ridge_weights(Wres, y, reg2_diag, self.ols_dof)
+        self.dof_t_ = dof_t
         self.alpha_ = np.atleast_1d(weights[self.adjust_tind_])
         self.beta_d_ = np.delete(weights, self.adjust_tind_, axis=0)
 
@@ -305,6 +317,7 @@ class TwoStageRidge(BaseEstimator, RegressorMixin):
             'regulariser1': self.regulariser1,
             'regulariser2': self.regulariser2,
             'fit_intercept': self.fit_intercept,
+            'ols_dof': self.ols_dof,
         }
 
     def set_params(self, **parameters: dict) -> Self:
@@ -329,7 +342,7 @@ def ridge_weights(
     X: np.ndarray,
     Y: np.ndarray,
     gamma: Union[float, np.ndarray],
-    compute_dof: bool = True
+    ols_dof: bool = False
 ) -> Tuple[np.ndarray, float, float]:
     """Compute ridge regression weights and degrees of freedom.
 
@@ -344,12 +357,14 @@ def ridge_weights(
     gamma : float or ndarray
         The regulariser coefficient. This can be a float, or an array of shape
         `(D,)` to apply a different regularisation to each dimension of X.
-    compute_dof : bool
-        Compute the degrees of freedom for ridge regression using the effective
-        degrees of freedom. If this is true the effective degrees of freedom
-        are computed using the method in [1]. If false, then the OLS degrees of
-        freedom (N - D) is returned. The OLS degrees of freedom is
-        substantially faster to compute, but it is conservative.
+    ols_dof : bool
+        Use the degrees-of-freedom from and OLS model instead of a ridge model.
+        This results in dof = N - D where N are the number of samples, and D is
+        the dimensionality of the control and treatment variables. This will
+        result in biased but conservative p-values and is very fast to compute.
+        We recommend only using this if the ridge model degrees of freedom
+        becomes too expensive to compute (during model selection for example).
+        See [1] for more information.
 
     Returns
     -------
@@ -371,31 +386,32 @@ def ridge_weights(
         https://doi.org/10.1186/1471-2105-12-372
     """
     N, D = X.shape
-    if np.isscalar(gamma):
-        gamma_diag = np.full(shape=D, fill_value=gamma)
-    else:
+    if not np.isscalar(gamma):
         if gamma.shape != (D,):  # type: ignore
             raise TypeError('gamma has to be a scalar or vector of X.shape[1]')
-        gamma_diag = gamma  # type: ignore
 
-    # Inner product of X with ridge weights added to diag X.T @ X + diag(gamma)
+    # Inner product of X with ridge weights added, X.T @ X + diag(gamma)
     A = X.T @ X
-    A[np.diag_indices(D)] += gamma_diag
+    A[np.diag_indices(D)] += gamma
 
-    if not compute_dof:
+    if ols_dof and (D < N):
         weights: np.ndarray = solve(a=A, b=X.T @ Y, assume_a='pos')
         dof = float(N - D)
         return weights, dof, dof
+    elif ols_dof and (D >= N):
+        warn('D >= N but ols_dof = True, ignoring...', RuntimeWarning)
 
     # It would be faster to solve A with b=X.T @ y, but we need iX
     iX = solve(a=A, b=X.T, assume_a='pos')
     weights: np.ndarray = iX @ Y  # type: ignore
 
-    # Degrees of freedom
-    h = iX @ X  # this is a DxD version of the NxN "hat" matrix, X @ Xi
-    trh = float(np.trace(h))  # same as trace(H)
-    dof_t: float = N - trh  # t-test
-    dof_s: float = N - 2 * trh + np.sum(h**2)  # sum(h**2) == trace(H @ H.T)
+    # Degrees of freedom -- make the hat matrix H as small as possible
+    # the results are the same for either of these two "H" matrices, DxD or
+    # NxN! So we'll make the smaller of the two options.
+    H = iX @ X if (D < N) else X @ iX
+    trH = float(np.trace(H))
+    dof_t: float = N - trH  # t-test
+    dof_s: float = N - 2 * trH + np.sum(H**2)  # sum(H**2) == trace(H @ H.T)
 
     return weights, dof_t, dof_s
 

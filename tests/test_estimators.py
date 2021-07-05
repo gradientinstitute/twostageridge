@@ -92,13 +92,13 @@ def test_ridge_dof(make_random):
 
     # test OLS dof
     ols_dof = N - D
-    _, dof_t, dof_s = ridge_weights(X, Y, gamma=gamma, compute_dof=False)
+    _, dof_t, dof_s = ridge_weights(X, Y, gamma=gamma, ols_dof=True)
     assert dof_t == dof_s
     assert dof_t == ols_dof
 
     # test ridge dof, these should be bigger than OLS since regularisation
     # reduces the effective dimensionality of the features.
-    _, dof_t, dof_s = ridge_weights(X, Y, gamma=gamma, compute_dof=True)
+    _, dof_t, dof_s = ridge_weights(X, Y, gamma=gamma, ols_dof=False)
     assert dof_t > ols_dof
     assert dof_s > ols_dof
     assert dof_t > dof_s
@@ -111,6 +111,11 @@ def test_ridge_dof(make_random):
 
     dof_s_full = N - np.trace(2*H - H @ H.T)
     assert np.allclose(dof_s, dof_s_full)
+
+    # make sure we throw a warning when ols_dof cannot be computed
+    Y = X.T @ rand.randn(N) + rand.randn(D)
+    with pytest.warns(RuntimeWarning, match='.*D >= N.*'):
+        ridge_weights(X.T, Y, gamma=gamma, ols_dof=True)
 
 
 @pytest.mark.parametrize('params, data', [
