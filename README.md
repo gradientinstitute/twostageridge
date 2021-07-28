@@ -1,6 +1,8 @@
 TwoStageRidge
 =============
 
+![CI status](https://github.com/gradientinstitute/twostageridge/actions/workflows/main.yml/badge.svg)
+
 A simple implementation of the two-stage ridge regression model described in
 Hahn et. al (2018) with a scikit-learn compatible API. This model allows us to
 use many and potentially highly correlated control variables with observational

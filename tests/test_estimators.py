@@ -10,8 +10,6 @@ from sklearn.utils.estimator_checks import check_estimator
 
 from twostageridge import TwoStageRidge, ridge_weights
 from twostageridge.estimators import _check_treatment_index
-from conftest import (make_dag1D_data, make_dag2D_data, make_dag1D_params,
-                      make_dag2D_params)
 
 
 def test_valid_estimator():
@@ -66,14 +64,14 @@ def test_intercept_checks(index, intercept):
 
 
 @pytest.mark.parametrize('params, data', [
-    (make_dag1D_params(), make_dag1D_data()),
-    (make_dag2D_params(), make_dag2D_data()),
+    ('make_dag1D_params', 'make_dag1D_data'),
+    ('make_dag2D_params', 'make_dag2D_data'),
 ])
 @pytest.mark.parametrize('reg_vec', [True, False])
-def test_ridge_weights(params, data, reg_vec):
+def test_ridge_weights(params, data, reg_vec, request):
     """Make sure ridge_weights can return an accurate estimate."""
-    alpha, gamma, beta, eps, nu = params
-    W, X, Y, Z = data
+    alpha, gamma, beta, eps, nu = request.getfixturevalue(params)
+    W, X, Y, Z = request.getfixturevalue(data)
     Xint = np.hstack((X, np.ones((len(X), 1))))
 
     reg = 0.1 * np.ones(Xint.shape[1]) if reg_vec else 0.1
@@ -119,33 +117,33 @@ def test_ridge_dof(make_random):
 
 
 @pytest.mark.parametrize('params, data', [
-    (make_dag1D_params(), make_dag1D_data()),
-    (make_dag2D_params(), make_dag2D_data()),
+    ('make_dag1D_params', 'make_dag1D_data'),
+    ('make_dag2D_params', 'make_dag2D_data'),
 ])
-def test_estimator_weights(params, data):
+def test_estimator_weights(params, data, request):
     """Make sure ridge_weights can return an accurate estimate."""
-    alpha, gamma, beta, eps, nu = params
-    W, X, Y, Z = data
+    alpha, gamma, beta, eps, nu = request.getfixturevalue(params)
+    W, X, Y, Z = request.getfixturevalue(data)
     ti = slice(0, len(alpha))
 
     est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)
     est.fit(W, Y)
 
-    assert np.allclose(est.beta_c_[:-1, :], gamma, rtol=0.01)
-    assert np.allclose(est.alpha_, alpha, rtol=0.01)
+    assert np.allclose(est.beta_c_[:-1, :], gamma, rtol=0.05)
+    assert np.allclose(est.alpha_, alpha, rtol=0.05)
 
     se_alpha = np.sqrt(nu**2 / np.sum(Z**2))
-    assert np.allclose(se_alpha, est.se_alpha_, atol=0.01)
+    assert np.allclose(se_alpha, est.se_alpha_, atol=0.05)
 
 
 @pytest.mark.parametrize('params, data', [
-    (make_dag1D_params(), make_dag1D_data()),
-    (make_dag2D_params(), make_dag2D_data()),
+    ('make_dag1D_params', 'make_dag1D_data'),
+    ('make_dag2D_params', 'make_dag2D_data'),
 ])
-def test_score_treatments(params, data):
+def test_score_treatments(params, data, request):
     """Make sure the treatment model score method is working."""
-    alpha, gamma, beta, eps, nu = params
-    W, X, Y, Z = data
+    alpha, gamma, beta, eps, nu = request.getfixturevalue(params)
+    W, X, Y, Z = request.getfixturevalue(data)
     ti = slice(0, len(alpha))
 
     est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)
@@ -155,13 +153,13 @@ def test_score_treatments(params, data):
 
 
 @pytest.mark.parametrize('params, data', [
-    (make_dag1D_params(), make_dag1D_data()),
-    (make_dag2D_params(), make_dag2D_data()),
+    ('make_dag1D_params', 'make_dag1D_data'),
+    ('make_dag2D_params', 'make_dag2D_data'),
 ])
-def test_predict_stage1(params, data):
+def test_predict_stage1(params, data, request):
     """Make sure the stage 1 predictions are returning expected results."""
-    alpha, gamma, beta, eps, nu = params
-    W, X, Y, Z = data
+    alpha, gamma, beta, eps, nu = request.getfixturevalue(params)
+    W, X, Y, Z = request.getfixturevalue(data)
     ti = slice(0, len(alpha))
 
     est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)
@@ -173,13 +171,13 @@ def test_predict_stage1(params, data):
 
 
 @pytest.mark.parametrize('params, data', [
-    (make_dag1D_params(), make_dag1D_data()),
-    (make_dag2D_params(), make_dag2D_data()),
+    ('make_dag1D_params', 'make_dag1D_data'),
+    ('make_dag2D_params', 'make_dag2D_data'),
 ])
-def test_stats(params, data):
+def test_stats(params, data, request):
     """Make sure the computed statistics are the correct dimensions."""
-    alpha, gamma, beta, eps, nu = params
-    W, X, Y, Z = data
+    alpha, gamma, beta, eps, nu = request.getfixturevalue(params)
+    W, X, Y, Z = request.getfixturevalue(data)
     ti = slice(0, len(alpha))
 
     est = TwoStageRidge(treatment_index=ti, regulariser1=.1, regulariser2=.1)

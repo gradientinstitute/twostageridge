@@ -12,7 +12,6 @@ from sklearn.linear_model import LinearRegression
 
 from twostageridge import (TwoStageRidge, make_first_stage_scorer,
                            make_combined_stage_scorer)
-from conftest import make_dag1D_data
 
 
 @pytest.mark.parametrize('estimator', [
@@ -25,9 +24,10 @@ from conftest import make_dag1D_data
     make_first_stage_scorer,
     make_combined_stage_scorer
 ])
-def test_score_calling(estimator, scoring, score_sign, make_scorer):
+def test_score_calling(estimator, scoring, score_sign, make_scorer,
+                       make_dag1D_data):
     """Test make_first_stage_scorer can be used with TwoStageRidge."""
-    W, X, Y, Z = make_dag1D_data()
+    W, X, Y, Z = make_dag1D_data
     estimator.fit(W, Y)
 
     scorefn = None
@@ -40,9 +40,9 @@ def test_score_calling(estimator, scoring, score_sign, make_scorer):
     make_first_stage_scorer,
     make_combined_stage_scorer
 ])
-def test_score_exceptions(make_scorer):
+def test_score_exceptions(make_scorer, make_dag1D_data):
     """Test the correct type exceptions are called in the make_*_scorers."""
-    W, X, Y, Z = make_dag1D_data()
+    W, X, Y, Z = make_dag1D_data
 
     scorer = make_scorer(r2_score)
 

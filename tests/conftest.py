@@ -20,6 +20,7 @@ def make_random():
     return RANDOM
 
 
+@pytest.fixture
 def make_dag1D_params():
     """Make parameters for a triangle graph with 1D treatment."""
     alpha = np.array([0.9])
@@ -30,6 +31,7 @@ def make_dag1D_params():
     return alpha, gamma, beta, eps, nu
 
 
+@pytest.fixture
 def make_dag2D_params():
     """Make parameters for a triangle graph with 1D treatment."""
     alpha = np.array([0.9, -0.5])
@@ -50,11 +52,15 @@ def make_data(alpha, gamma, beta, eps, nu):
     return W, X, Y, Z
 
 
-def make_dag1D_data():
+@pytest.fixture
+def make_dag1D_data(make_dag1D_params):
     """Make data for a triangle graph with 1D treatment."""
-    return make_data(*make_dag1D_params())
+    alpha, gamma, beta, eps, nu = make_dag1D_params
+    return make_data(alpha, gamma, beta, eps, nu)
 
 
-def make_dag2D_data():
+@pytest.fixture
+def make_dag2D_data(make_dag2D_params):
     """Make data for a triangle graph with 2D treatment."""
-    return make_data(*make_dag2D_params())
+    alpha, gamma, beta, eps, nu = make_dag2D_params
+    return make_data(alpha, gamma, beta, eps, nu)
