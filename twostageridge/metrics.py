@@ -2,11 +2,12 @@
 # Copyright (c) Gradient Institute. All rights reserved.
 # Licensed under the Apache 2.0 License.
 
-import numpy as np
-from typing import Optional, Union, Callable, Any
 from operator import add
+from typing import Any, Callable, Optional, Union
 
+import numpy as np
 from sklearn.pipeline import Pipeline
+
 from twostageridge import TwoStageRidge
 
 

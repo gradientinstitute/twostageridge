@@ -2,16 +2,15 @@
 # Copyright (c) Gradient Institute. All rights reserved.
 # Licensed under the Apache 2.0 License.
 
-import pytest
 import numpy as np
-
-from sklearn.metrics import check_scoring, r2_score, mean_absolute_error
+import pytest
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import check_scoring, mean_absolute_error, r2_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
 
-from twostageridge import (TwoStageRidge, make_first_stage_scorer,
-                           make_combined_stage_scorer)
+from twostageridge import (TwoStageRidge, make_combined_stage_scorer,
+                           make_first_stage_scorer)
 
 
 @pytest.mark.parametrize('estimator', [

@@ -3,8 +3,7 @@
 # Licensed under the Apache 2.0 License.
 
 from .estimators import TwoStageRidge, ridge_weights
-from .metrics import make_first_stage_scorer, make_combined_stage_scorer
-
+from .metrics import make_combined_stage_scorer, make_first_stage_scorer
 
 __all__ = (
     'TwoStageRidge',

@@ -2,11 +2,9 @@
 # Copyright (c) Gradient Institute. All rights reserved.
 # Licensed under the Apache 2.0 License.
 
-import pytest
 import numpy as np
-
+import pytest
 from sklearn.utils import check_random_state
-
 
 # Test constants
 RANDSTATE = 99

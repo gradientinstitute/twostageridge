@@ -2,19 +2,17 @@
 # Copyright (c) Gradient Institute. All rights reserved.
 # Licensed under the Apache 2.0 License.
 
-import numpy as np
-from typing import Tuple, Optional, TypeVar, Union, NamedTuple
 from functools import singledispatch
+from typing import NamedTuple, Optional, Tuple, TypeVar, Union
 from warnings import warn
 
+import numpy as np
 from scipy.linalg import solve
 from scipy.stats import t
-
 from sklearn.base import BaseEstimator, RegressorMixin
-from sklearn.utils import check_X_y, check_array
-from sklearn.utils.validation import check_is_fitted
 from sklearn.metrics import r2_score
-
+from sklearn.utils import check_array, check_X_y
+from sklearn.utils.validation import check_is_fitted
 
 # Make a return type for "self"
 Self = TypeVar('Self', bound='TwoStageRidge')

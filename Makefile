@@ -21,7 +21,7 @@ lint:
 	py.test --flake8 ./twostageridge -p no:regtest --cache-clear
 
 isort:
-	isort --recursive .
+	isort .
 
 test:
 	pytest . --cov=twostageridge tests/	

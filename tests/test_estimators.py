@@ -4,7 +4,6 @@
 
 import numpy as np
 import pytest
-
 from scipy.linalg import solve
 from sklearn.utils.estimator_checks import check_estimator
 
