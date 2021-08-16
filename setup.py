@@ -1,9 +1,4 @@
-"""A setuptools based setup module.
-
-See:
-https://packaging.python.org/en/latest/distributing.html
-https://github.com/pypa/sampleproject
-"""
+"""Setuptools module for TwoStageRidge."""
 
 # Always prefer setuptools over distutils
 from setuptools import setup
@@ -29,7 +24,7 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/',
+    url='https://github.com/gradientinstitute/twostageridge',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -37,7 +32,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
@@ -49,7 +44,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='bayesian causality',
+    keywords='causality regression ridge statistics',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
