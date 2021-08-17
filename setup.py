@@ -58,14 +58,13 @@ setup(
     install_requires=[
         'numpy',
         'scipy',
-        'pandas',
         'scikit-learn',
     ],
     extras_require={
         'dev': [
+            'pandas',
             'matplotlib',
             'notebook',
-            'jedi',
             'pytest',
             'pytest-flake8',
             'pytest-mock',
